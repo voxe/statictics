@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+p {width:100}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+var formatPercent = d3.format(".0%");
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+</style>
+<body>
+<div style="float:left">
+<p><select id='lissage'>
+    <option value='brute'> brute </option>
+    <option value='lisse'> lisse </option>
+</select></p>
+<p><select id='pourcent'>
+    <option value='abs'> En Valeur Absolue </option>
+    <option value='pct'> En Pourcentage </option>
+</select></p>
+<p><select id='candidat'>
+    <option value='tous'> Tous </option>
+    <option value='Sarkozy'> Reports Sarkozy </option>
+    <option value='Hollande'> Reports Hollande </option>
+</select></p><div>
+<script src="d3.min.js"></script>
+<script>
+
+var margin = {top: 20, right: 200, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+
+var x = d3.time.scale()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var color = d3.scale.category20();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(d3.time.months, 1)
+    .tickFormat(d3.time.format('%d/%m/%y'));
+  //  .tickSize(0)
+  //  .tickPadding(8);
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var line = d3.svg.line()
+    //.interpolate('bundle')
+    .x(function(d) { return x(d[0]); })
+    .y(function(d) { return y(d[1]); });
+
+d3.select('#candidat').on('change',update);
+d3.select('#pourcent').on('change',update);
+d3.select('#lissage').on('change',update);
+
+var svg = d3.select("body").append("svg")
+    .style('float','right')
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var courbe,data;
+
+d3.json("versus.json", function(error, d) {
+      data=d;
+      var parseDate = d3.time.format("%Y-%m-%d").parse;
+      for (versus in data) 
+        data[versus].forEach(function(d) {d[0]= parseDate(d[0]); d[2]=versus});
+      color.domain(d3.keys(data));      
+      x.domain([
+        d3.min(d3.keys(data), function(d) { return d3.min(data[d],function(d){return d[0]})}),
+        d3.max(d3.keys(data), function(d) { return d3.max(data[d],function(d){return d[0]})})
+      ]);
+      y.domain([
+        0,
+        d3.max(d3.keys(data), function(d) { return d3.max(data[d],function(d){return d[1]})})
+      ]);
+      
+      svg.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+      svg.append("g")
+          .attr("class", "y axis")
+          .call(yAxis)
+        .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", ".71em")
+          .style("text-anchor", "end")
+          .text("Pourcentage du total");
+
+      courbe = svg.selectAll(".courbe")
+          .data(d3.keys(data))
+        .enter().append("scg:g")
+          .attr("class", "courbe")
+      
+      courbe.append("svg:title")
+            .text(function(d) {return d;});
+          
+      courbe.append("svg:path")
+          .attr("class", "line")
+          .attr("d", function(d) { return line(data[d]); })
+          .style("stroke", function(d) { return color(d); })
+     
+      courbe.selectAll('circle.point')
+        .data(function(d){return data[d]})
+        .enter().append('svg:circle')
+           .attr("class", "point")
+           .attr("cx", function(d, i) { return x(d[0]) })
+           .attr("cy", function(d, i) { return y(d[1]) })
+           .attr("r",  function(d, i) { return 3 })
+                .style("stroke", function(d) { return color(d[2]);})
+                .style("fill", function(d) { return color(d[2]);})
+           .append("svg:title")
+                .text(function(d) {return d[2]+' '+d3.time.format("%d/%m/%Y")(d[0])+' '+d[1];});
+     
+});
+
+function update(){
+
+    var filter=d3.select('#candidat').property('value');
+    var ffilter=(filter=='tous')? function(d){return true} : function (d) {return d.indexOf(filter)>-1 && ( d.indexOf('Sarkozy')==-1 || d.indexOf('Hollande')==-1 );}
+        
+    courbe.attr('visibility',function(d){
+          if (ffilter(d)) return 'visible'; else return 'hidden'})
+     .selectAll('circle.point').attr('visibility',function(d){
+     if(ffilter(d[2]) && d3.select('#lissage').property('value')=='brute')
+     return 'visible';
+     else return 'hidden'});
+          
+          
+     
+    line.interpolate((d3.select('#lissage').property('value')=='lisse')?'bundle':'linear');
+    
+    
+               
+    if (d3.select('#pourcent').property('value')=='abs'){           
+            var maxxer=(function (data){
+                 var amax=-1000000,amin=100000;
+                 return function(d){
+                    if (d) {
+                        amax=Math.max(amax,d3.max(data[d],function(d){return d[1]}));
+                        amin=Math.min(amin,d3.min(data[d],function(d){return d[1]}));
+                    }
+                    return [amin,amax];
+                 }})(data);
+            courbe.filter(ffilter).each(maxxer);
+            y.domain([0,maxxer()[1]]);
+            svg.select(".y")
+                  .call(yAxis);
+                  
+            courbe.selectAll('path')
+                 .attr("d", function(d){return line(data[d]);});
+            
+            courbe.selectAll('circle.point')
+                     .data(function(d){return data[d]})
+                 .attr("cx", function(d, i) {return x(d[0]) })
+                 .attr("cy", function(d, i) { return y(d[1]) })
+    }
+    else {
+        var totaller=(function (data){
+             var total={};
+             return function(d){
+                if (d) {
+                    data[d].forEach(function(f){total[f[0]]=total[f[0]]+f[1]||f[1]})
+                }
+                return total;
+        }})(data);
+        courbe.filter(ffilter).each(totaller);
+        var total=totaller();
+        var maxxer=(function (data){
+                 var amax=-1000000,amin=100000;
+                 return function(d){
+                    if (d) {
+                        amax=Math.max(amax,d3.max(data[d],function(d){return d[1]/total[d[0]]}));
+                        amin=Math.min(amin,d3.min(data[d],function(d){return d[1]/total[d[0]]}));
+                    }
+                    return [amin,amax];
+                 }})(data);
+        courbe.filter(ffilter).each(maxxer);
+        y.domain([0,maxxer()[1]]);
+        svg.select("svg.axisy").call(yAxis);
+        
+        courbe.selectAll('path')
+             .attr("d", function(d) { return line(data[d].map(function (r){
+                  return [r[0],r[1]/total[r[0]]]}))});
+                  
+        courbe.selectAll('circle.point')
+                     .data(function(d){return data[d]})
+                 .attr("cx", function(d, i) {return x(d[0]) })
+                 .attr("cy", function(d, i) {return y(d[1]/total[d[0]]) })
+    }
+}
+
+
+</script>
