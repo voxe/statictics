@@ -54,7 +54,7 @@ for d in BSONInput(open('data/events.bson'))._reads():
 res={}
 
 for c1,c2,day in co:
-    if '2011-12-20'<=day<='2012-05-08':
+    if '2011-12-20'<=day<='2012-05-10':
         if c1+' Vs '+c2 not in res:
             res[c1+' Vs '+c2]=[]
         res[c1+' Vs '+c2]+=[[day,co[(c1,c2,day)]]]
