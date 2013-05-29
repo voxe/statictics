@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+
+
+p.infotitre{
+    background-color:#ccc;
+    text-align:center;
+    padding:5px;
+    font-size:14px;
+    max-width:200px;
+}
+
+p p {
+    max-width:180px;
+    text-align:left;
+    font-size:12px;
+    margin:5px;
+    background-color:white;
+    overflow-y:hidden;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+var formatPercent = d3.format(".0%");
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+</style>
+<body>
+<div style="float:left">
+<p><select id='lissage'>
+    <option value='lisse'> lisse </option>
+    <option value='brute'> brute </option>
+</select></p>
+<p><select id='pourcent'>
+    <option value='pct'> En Pourcentage </option>
+    <option value='abs'> En Valeur Absolue </option>
+</select></p>
+<p><select id='candidat'>
+    <option value='tous'> Tous </option>
+</select></p>
+<div id='info' style="max-width:100"></div>
+</div>
+<script src="d3.min.js"></script>
+<script>
+
+
+var infos=[
+/*['1. duel Sarkozy-Hollande',
+"Les visiteurs on surtout comparés Hollande et Sarkozy. Les élections présidentielles sont surtout un match gauche-droite.",
+function(){
+    d3.select('#lissage').property('value','brute');
+    d3.select('#pourcent').property('value','abs');
+    d3.select('#candidat').property('value','tous');
+},
+'2012-04-27',15000],*/
+]
+
+var arrow;
+
+d3.select('#info').selectAll('p').data(infos)
+    .enter().append('p')
+        .attr('class','infotitre')
+        .text(function(d){return d[0]+'▼'})
+        .on('click',function (d){
+              d3.select('#info').selectAll('p')
+                 .select('p').transition()
+                 .style('height',function(e){return (d==e)? 'auto':0 });
+              d[2]();
+              window.dessine();
+              arrow.attr('x',x(parseDate(d[3])))
+                    .attr('y',y(d[4]))
+                    .attr('visibility','visible')
+            })
+    .append('p')
+       .style('height',0)
+       .text(function(d){return d[1]})
+        
+
+
+
+
+var margin = {top: 20, right: 300, bottom: 30, left: 50},
+    width = 1000 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+
+var x = d3.time.scale()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var color = d3.scale.category10();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(d3.time.months, 1)
+    .tickFormat(d3.time.format('%d/%m/%y'));
+  //  .tickSize(0)
+  //  .tickPadding(8);
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var line = d3.svg.line()
+    //.interpolate('bundle')
+    .x(function(d) { return x(d[0]); })
+    .y(function(d) { return y(d[3]); });
+
+d3.select('#candidat').on('change',dessine);
+d3.select('#pourcent').on('change',dessine);
+d3.select('#lissage').on('change',dessine);
+
+var svg = d3.select("body").append("svg")
+    .style('float','right')
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    
+arrow=svg.append('text').text('⬂')
+    .style('fill','red').style('font-size','80px')
+    .attr('x',10)
+    .attr('y',10)
+    .attr('visibility','hidden')
+    .style('text-anchor','end')
+    
+   
+var yaxis=svg.append("g")
+          .attr("class", "y axis")
+
+var legend=svg.append("g")
+          .attr("class", "legend")
+            .attr("transform", "translate(" + (width+10) + "," + 0 + ")");
+
+var courbe,data,datas;
+
+var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+
+d3.json("sondage.json", function(error, d) {
+      data=d;
+      for (k in data) 
+        data[k].forEach(function(d) {d[0]= parseDate(d[0]); d[2]=k});
+      
+      color.domain(d3.keys(data).sort(function(a,b){
+                    return d3.sum(data[b],function(k){return k[1]})-
+                           d3.sum(data[a],function(k){return k[1]})})
+      
+      );      
+      
+      x.domain([
+        d3.min(d3.keys(data), function(d) { return d3.min(data[d],function(d){return d[0]})}),
+        d3.max(d3.keys(data), function(d) { return d3.max(data[d],function(d){return d[0]})})
+      ]);
+      
+     d3.select('#candidat').selectAll('option')
+        .data(d3.keys(data).sort(function(a,b){
+                    return d3.sum(data[b],function(k){return k[1]})-
+                           d3.sum(data[a],function(k){return k[1]})}),
+                    function(d){return d})
+        .enter().append('option')
+        .text(function(d){return d})
+       // .attr('value',function(d){return d.split(' ')[-1]})
+      
+     svg.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+     
+     var dates=[
+        ['2012-03-22','Campagne'],
+        ['2012-04-22','1er Tour'],
+        ['2012-05-6','2e Tour'],        
+     ]
+     
+     var vl=svg.selectAll('g.vl').data(dates)
+        .enter()
+        .append('g').attr('class','vl');
+     
+     vl.append("path")
+        .attr('d',function(d){return 'm'+x(parseDate(d[0]))+',0l0,'+height})
+        .style('stroke','black');
+     vl.append('text')
+        .attr("transform",function(d){return 'translate('+(x(parseDate(d[0]))+2)+',10)'})
+        .text(function(d){return d[1]});
+     d3.json("sondages.json", function(error, d) {
+        datas=d;
+        dessine();     
+     })
+})
+
+function dessine(){
+      
+      arrow.attr('visibility','hidden')
+      
+      line.interpolate((d3.select('#lissage').property('value')=='lisse')?'bundle':'linear');
+
+      var filter=d3.select('#candidat').property('value');
+      var ffilter=
+        (filter=='tous')? function(d){return true} :
+        (filter=='ssh')? function(d){return d!="François Hollande Vs Nicolas Sarkozy"} :
+        function (d) {return d.indexOf(filter)>-1 && 
+            ( d.indexOf('Sarkozy')==-1 || d.indexOf('Hollande')==-1 );}
+      
+      var dataf={}
+      d3.keys(data).filter(ffilter).forEach(function(d){
+        dataf[d]=[].concat(data[d])})
+        
+       
+      legend.selectAll('g').remove();
+      var legends=legend.selectAll('g').data(
+            d3.keys(dataf)
+                .sort(function(a,b){
+                    return d3.sum(dataf[b],function(k){return k[1]})-
+                           d3.sum(dataf[a],function(k){return k[1]})}),
+            function(d){return d});
+      var onelegend=legends.enter().append('g')
+            .attr('transform',function(d,i){return 'translate(0,'+(i*30)+')'})
+      
+      onelegend.append('rect')
+            .style('fill',function(d){return color(d)})
+            .attr('width',30)
+            .attr('height',20)
+      onelegend.append('text')
+        .attr('transform','translate(40,15)')
+        .text(function(d){return d});
+     // legends.exit().remove();
+      
+      if (d3.select('#pourcent').property('value')=='pct'){
+         var totaux={};
+         d3.keys(dataf).forEach(function(d){
+            dataf[d].forEach(function(f){
+                totaux[f[0]]=totaux[f[0]]+f[1]||f[1]
+            })
+         })
+         
+         d3.keys(dataf).forEach(function(d){
+            dataf[d].forEach(function(f){
+                f[3]=f[1]*100/totaux[f[0]]
+            })
+         })
+      }
+      else
+        d3.keys(dataf).forEach(function(d){
+            dataf[d].forEach(function(f){
+                f[3]=f[1]
+            })
+         })
+      
+      y.domain([
+        0,
+        d3.max(d3.keys(dataf), function(d) { return d3.max(dataf[d],function(k){return k[3]})})
+      ]);
+      
+      var ytext=yaxis.selectAll('text').data([null]);
+       
+      ytext.enter().append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", ".71em")
+          .style("text-anchor", "end");
+          
+      ytext.text(d3.select('#pourcent')
+                    .selectAll('option')
+                    .filter(function(){return this.selected})
+                    .text());
+       
+      yaxis.transition().call(yAxis);
+      
+      datas.forEach(function(d){
+        d.val.forEach(function (v){
+          v[2]=d.date;  
+        })
+      })
+      svg.selectAll("g.sondage").data(datas,function(d){return d.date})
+         .enter().append('g').attr('class','sondage')
+            .selectAll('circle.sondage')
+            .data(function(d){return d.val})
+         .enter().append('circle').attr('class','sondage')
+            .attr('cy',function(d){return y(d[1])})
+            .attr('cx',function(d){return x(parseDate(d[2]))})
+            .attr('r',10)
+            .style('fill','none')
+            .style('stroke',function(d){
+                candidats=d3.keys(dataf);
+                for (var i=0;i<candidats.length;i++)
+                        if (candidats[i].indexOf(d[0])>-1) return color(candidats[i]);
+                return 'none'})
+         //   .attr(color,function (d){ return 'black'})
+         
+        
+        
+        
+        
+      courbe = svg.selectAll(".courbe").data(d3.keys(dataf),function(d){return d})
+      var ncourbe=courbe.enter()
+              .append("svg:g")
+                  .attr("class", "courbe")
+                  .attr('opacity',0.0);
+      
+      ncourbe.append("svg:title")
+            .text(function(d) {return d;})
+          
+      ncourbe.append("svg:path")
+          .attr("class", "line")
+          .style("stroke", function(d) { return color(d); })
+      
+          
+      courbe.transition().select('path.line')
+        .attr("d", function(d) { return line(dataf[d]); })
+      
+      ncourbe.transition()
+          .attr('opacity',1.0)
+      
+      courbe.exit().transition()
+          .attr('opacity',0.0)
+          .remove()
+          
+      var points=courbe.selectAll('circle.point')
+            .data(function(d){return (d3.select('#lissage').property('value')=='brute')?data[d]:[]})
+      points.enter().append('svg:circle')
+           .attr("class", "point")
+           .attr("r",  function(d, i) { return 3 })
+           .style("stroke", function(d) { return color(d[2]);})
+           .style("fill", function(d) { return color(d[2]);})
+           .append("svg:title")
+                .text(function(d) {return d[2]+' '+d3.time.format("%d/%m/%Y")(d[0])+' '+d[1];});
+           
+           
+      points.attr("cx", function(d, i) { return x(d[0]) })
+            .attr("cy", function(d, i) { return y(d[3]) })
+            
+      points.exit().remove();
+     
+};
+
+</script>
