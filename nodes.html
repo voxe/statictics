@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<title>Voxe.org : résultat nodes</title>
-		<script type="text/javascript" src="d3.js"></script>
+		<script type="text/javascript" src="d3.min.js"></script>
 	</head>
 	<body>
 <script type="text/javascript" charset="utf-8">
@@ -39,7 +39,7 @@
 			            tag    : d[2],
 			            nbversus : d[3]
 		    };
-		    
+
 		    links2.push(link);
             tagMap[d[2]]=tagMap[d[2]] + d[3] || d[3];
 		    linkMap[d[0]]=linkMap[d[0]]+d[3]||d[3];
@@ -49,15 +49,15 @@
 		    if (!(d[1] in linksMap)) linksMap[d[1]]=[];
 		    linksMap[d[1]].push(link);
 		    versusMap[d[0]+','+d[1]]=d[3]+versusMap[d[0]+','+d[1]] || d[3];
-		    
+
         });
-        
+
         console.log(tagMap)
-        
+
         tagMap['tous']=d3.sum(d3.values(tagMap));
-        
+
         var colortag=d3.scale.category10().domain(d3.keys(tagMap));
-        
+
         var ocolortag=function(d){return (d=='tous')?'black':colortag(d)}
         currenttag='tous';
         var tags=tab.selectAll('p.tag')
@@ -68,18 +68,18 @@
                 .style('display','block')
                 .text(function(d){return d})
                 .style('font-weight',function(d){return (d=='tous')?'bold':'normal'})
-        
+
         tags.append('td')
             .style('text-align','right')
             .text(function(d){return d3.format('5.0')(tagMap[d])})
             .style('color',ocolortag)
-            
+
         tags.append('td')
             .style('text-align','right')
             .text(function(d){return d3.format('2.0%')(tagMap[d]*2/d3.sum(d3.values(tagMap)))})
             .style('color',ocolortag)
 
-        
+
         d3.keys(versusMap).forEach(function(d){
             var d0=d.split(',')[0];
             var d1=d.split(',')[1];
@@ -90,17 +90,17 @@
 		    };
 		    links1.push(link);
         })
-        
+
         //console.log(versusMap);
         //console.log(nodes,links2);
-        
+
         var force = d3.layout.force()
             .size([w, h]).nodes(nodes);
 
         force.start();
         var glink=vis.append("svg:g");
         var link;
-        
+
         creerliens= function creerliens(){
             if (currentnode===null){
                 console.log('undefined');
@@ -111,7 +111,7 @@
                     return (d.tag==currenttag)});
             }
             else{
-            
+
                 if (currenttag=='tous')
                     alier=links1.filter(function (d) {
                     return (d.source==currentnode || d.target==currentnode)});
@@ -128,38 +128,38 @@
             .links(alier)
             .linkDistance(function(d){return Math.max(Math.min((d.nbversus-dom[1])/(dom[0]-dom[1]),1),0)*100+150} );
             force.start();
-            
-            
+
+
             glink.selectAll("g.link").remove();
-            
-            if (currentnode!==null){          
+
+            if (currentnode!==null){
             link = glink.selectAll("g.link")
                     .data(alier)
                     .enter().append("svg:g")
                     .attr("class", "link");
-                    
+
             link.append("svg:line")
               .attr("class", "link")
               .style("stroke", "#555")
               .style("stroke-width", 3);
-              
+
             link.append("svg:circle")
                 .attr("class", "link")
                 .attr("r", function(d){return 20+Math.sqrt(d.nbversus)/50})
                 .style("fill", "#EEE")
                 .style("stroke", "#000")
                 .style("stroke-width", 1);
-        
+
             link.append("text")
             .attr("class", "link")
             .attr('fill',ocolortag(currenttag))
             .attr('text-anchor','middle')
             .text(function(d){return d.nbversus})
-                       
+
             if (typeof link != 'undefined') link.call(positionneLien);
             }
         }
-       
+
        creerliens();
        tags.select('button').on('click',function(){
                             currenttag=d3.select(this).datum();
@@ -170,7 +170,7 @@
                     .data(force.nodes())
                     .enter().append("svg:g")
                     .attr("class", "node");
-                    
+
         node.append("svg:circle").attr("r", 40)
                 .style("fill", "#555")
                 .style("stroke", "#000")
@@ -181,39 +181,39 @@
             .attr('text-anchor','middle')
             .attr("transform", "translate(0,-5)")
             .text(function(d){return d.label.split(' ')[0]})
-            
+
         node.append("text")
             .attr('fill','white')
             .attr('text-anchor','middle')
             .attr("transform", "translate(0,15)")
             .text(function(d){var s=d.label.split(' '); return (s.length==3) ? (s[1]+' '+s[2]): s[1]})
-                
+
         node.call(force.drag);
-        
+
         var positionneLien = function() {
 				this.select('line.link')
 				.attr("x1", function(d) {return d.source.x;})
 				.attr("y1", function(d) {return d.source.y;})
 				.attr("x2", function(d) {return d.target.x;})
 				.attr("y2", function(d) {return d.target.y;});
-				
+
 			   this.select('circle.link')
 			       .attr("cx", function(d) {return (d.source.x+d.target.x)/2;})
 			       .attr("cy", function(d) {return (d.source.y+d.target.y)/2;});
-			   
+
 			   this.select('text.link')
                     .attr("transform", function(d) {
-	                    return "translate(" + (d.source.x+d.target.x)/2 + 
+	                    return "translate(" + (d.source.x+d.target.x)/2 +
 	                            "," + ((d.source.y+d.target.y)/2+5) + ")";
                     });
 	   }
-        
+
         var updateNode = function() {
             this.attr("transform", function(d) {
 	            return "translate(" + d.x + "," + d.y + ")";
             });
         }
-        
+
         var clicknode = function() {
             if (currentnode==d3.select(this).datum())
             {
@@ -224,9 +224,9 @@
             }
             currentnode=d3.select(this).datum();
             creerliens();
-            
+
             force.stop()
-            force.nodes().forEach(function(d){                
+            force.nodes().forEach(function(d){
                 if (d==currentnode) {d.x=w/2;d.y=h/2;d.fixed=true}
                 else {
                     var rand=Math.random() * 2*Math.PI;
@@ -239,15 +239,15 @@
             })
             force.start();
         }
-                
+
         node.on('click',clicknode);
-        
+
         force.on("tick", function() {
             node.call(updateNode);
             if (typeof link != 'undefined') link.call(positionneLien);
         });
     });});
-			
+
 </script>
 </body>
 </html>
